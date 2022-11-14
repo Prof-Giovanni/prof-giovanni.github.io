@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+
+
+<html lang="pt-br">
+
+<head>
+
+	<meta charset="utf-8">
+	<title> Conway's Game of Life </title>
+	
+</head>
+
+<body onclick=	"onClick()">
+
+	<h1> Game of Life </h1>
+	
+	<p id="coordenadas"> Coordenadas </p>
+	<p id="mousestatus"> Status do mouse </p>
+	<p>
+	<button id= "btLimpar" onclick="limpar()"> Limpar </button>
+	</p>
+	<p>
+	
+	<input type= "checkbox" id= "chkRodando" onclick= "fnCheckRodando()" > Rodando </input>
+	<input type= "checkbox" id= "chkApagar" onclick= "fnConfigApagar()" > Apagar </input>
+	</p>
+
+	<canvas id= "tela" 
+			width= "800"
+			height= "500"
+			onmousemove= "onMouseMove(event)"
+			onmousedown= "onMouseDown(event)"
+			onmouseup=	 "onMouseUp(event)"	>	
+	</canvas>
+
+	<style>
+	
+	*
+	{
+		text-align:			center;
+		background-color:	gray;
+	}
+	
+	h1
+	{
+		color:	cyan;
+		background-color:	black;
+		font-family:	arial;
+	}
+	
+	#tela
+	{
+		border:	2px solid;
+	}
+	
+	#coordenadas, #mousestatus
+	{
+		font-family:	courier;
+		color:			white;
+	}
+	
+	#btLimpar
+	{
+		width:			80px;
+		height:			25px;
+		font-family:	arial;
+		background-color: #DDDDDD;
+	}
+	
+	
+	</style>
+	
+	<script type="text/javascript">
+	
+	var meuCanvas;
+	var textoCoordenadas;
+	var textoMouseStatus;
+	
+	const corCelulaPreenchida= "#0088AA";
+	const corCelulaVazia= "white";
+	
+	var corCelula= corCelulaPreenchida;
+
+	
+	var numLinhas= 500;
+	var numColunas= 450;
+	
+	var matriz;
+	
+	var rodando= false;
+	
+	
+	function windowToCanvas( canvas, x, y )
+	{
+		var bbox= canvas.getBoundingClientRect();
+		
+		return { x : x - bbox.left * ( canvas.width / bbox.width ),
+				 y : y - bbox.top * ( canvas.height / bbox.height )
+			   };
+	}
+	
+	var Tela= function( canvas, largura, altura )
+	{
+		this.canvas= canvas;
+		this.largura= largura;
+		this.altura= altura;				
+		
+		this.context= canvas.getContext( "2d" );
+		
+		this.context.fillStyle= "white"; //"rgb( 200, 200, 200 )";
+		
+		this.context.strokeStyle= "black";
+		
+		this.passoGrid= 10;
+		this.gridon= true;
+		
+		this.x= 0;
+		this.y= 0;
+		
+		
+		this.deltax= 0;
+		this.deltay= 0;
+		
+		this.mouseDown= false;
+		
+		this.context.fillRect( 0, 0, this.largura, this.altura );
+		
+		
+		this.setXY= function( x, y )
+		{
+			var loc= windowToCanvas( this.canvas, x, y );
+			
+			this.x= Math.round( loc.x );
+			this.y= Math.round( loc.y );
+			
+			var rect= this.canvas.getBoundingClientRect();
+			
+			if ( x < rect.left || x > rect.right ||	 y < rect.top || y > rect.bottom )
+			{
+				this.mouseDown= false;				
+			}
+		}
+		
+		this.setMouseDown= function( mouseDown )
+		{
+			this.mouseDown= mouseDown;
+		}
+		
+		this.mouseUpdate= function()
+		{
+			if ( this.mouseDown )
+			{
+				var linha= Math.floor( this.y / this.passoGrid );
+				var coluna= Math.floor( this.x / this.passoGrid );
+				
+				this.pintarPixel( linha, coluna );
+				
+				this.desenharGrid();
+										
+				if ( corCelula == corCelulaPreenchida )
+				{
+					matriz[ linha ][ coluna ]= true;
+				}
+				else
+				{
+					matriz[ linha ][ coluna ]= false;
+				}
+			}
+			
+
+		}
+		
+		this.pintarPixel= function( linha, coluna )
+		{				
+			this.context.fillStyle= corCelula;
+			this.context.fillRect( coluna * this.passoGrid,	linha * this.passoGrid,	this.passoGrid, this.passoGrid );
+		}
+		
+		this.limpar= function()
+		{
+			this.context.fillStyle= "white";
+			this.context.fillRect( 0, 0, this.largura, this.altura );
+			
+			if ( this.gridon )
+			{
+				this.desenharGrid();
+			}
+		}
+		
+		this.desenharGrid= function()
+		{
+			this.context.beginPath();
+			var strokeBackup= this.context.strokeStyle;
+			this.context.strokeStyle= "rgb( 200, 200, 200 )";
+			
+			for ( var linha= 0; linha < this.altura; linha+= this.passoGrid )
+			{
+				this.context.moveTo( 0, linha );
+				this.context.lineTo( this.largura, linha );
+			}
+			
+			for ( var coluna= 0; coluna < this.largura; coluna+= this.passoGrid )
+			{
+				this.context.moveTo( coluna, 0 );
+				this.context.lineTo( coluna, this.altura ); 
+			}
+			
+			this.context.stroke();
+			this.context.strokeStyle= strokeBackup;
+			
+		}
+	}
+	
+	function inicializar()
+	{	
+		var canvas= document.getElementById( "tela" );
+		
+		var largura= canvas.width;
+		var altura= canvas.height;
+			
+		meuCanvas= new Tela( canvas, largura, altura );
+
+		textoCoordenadas= document.getElementById( "coordenadas" );	
+
+		textoMouseStatus= document.getElementById( "mousestatus" );
+		
+		meuCanvas.desenharGrid();		
+		
+		numColunas= Math.floor( largura / meuCanvas.passoGrid );
+		numLinhas= Math.floor( altura / meuCanvas.passoGrid );
+		
+		// Cria a matriz.
+		matriz= new Array( numLinhas );
+		for ( var linha= 0; linha < numLinhas; linha++ )
+		{
+			matriz[ linha ]= new Array( numColunas );
+			for ( var coluna= 0; coluna < numColunas; coluna++ )
+			{
+				matriz[ linha ][ coluna ]= false;
+			}
+		}
+		
+		setInterval( atualizar, 25 );
+	}	
+	
+	function atualizar()
+	{
+		if ( rodando )
+		{
+			executarRegra();
+		
+			meuCanvas.limpar();			
+			
+			for ( var linha= 0; linha < numLinhas; linha++ )
+			{
+				for ( var coluna= 0; coluna < numColunas; coluna++ )
+				{
+					if ( matriz[ linha ][ coluna ] )
+					{
+						meuCanvas.pintarPixel( linha, coluna );
+					}
+				}
+			}
+			
+			meuCanvas.desenharGrid();
+		}
+		
+	}
+	
+	function executarRegra()
+	{
+		var copiaMatriz= new Array( numLinhas );
+		for ( var linha= 0; linha < numLinhas; linha++ )
+		{
+			copiaMatriz[ linha ]= new Array( numColunas );
+			for ( var coluna= 0; coluna < numColunas; coluna++ )
+			{
+				copiaMatriz[ linha ][ coluna ]= matriz[ linha ][ coluna ];
+			}
+		}
+		
+		for ( var linha= 0; linha < numLinhas; linha++ )
+		{
+			for ( var coluna= 0; coluna < numColunas; coluna++ )
+			{
+				var numVizinhos= 0;
+				
+				for ( var i= -1; i <= 1; i++ )
+				{
+					var lin= ( linha + numLinhas + i ) % numLinhas;
+					
+					for ( var j= -1; j <= 1; j++ )
+					{
+						var col= ( coluna + numColunas + j ) % numColunas;
+						
+						if ( copiaMatriz[ lin ][ col ] && ! ( lin == linha && col == coluna ) )
+						{
+							numVizinhos++;
+						}
+						
+						col++;
+						col= col % numColunas;
+					}
+					
+					lin++;
+					lin= lin % numLinhas;
+				}
+				
+				
+				if ( numVizinhos < 2 || numVizinhos > 3)
+				{
+					matriz[ linha ][ coluna ]= false;
+				}
+				else if ( numVizinhos == 3 )
+				{
+					matriz[ linha ][ coluna ]= true;
+				}
+				
+				
+			}
+		}
+	
+	}
+	
+	function onClick( event )
+	{		
+		meuCanvas.setMouseDown( false );
+		textoMouseStatus.innerHTML= " Sem arrastar ";
+		
+	}
+	
+	function onMouseMove( event )
+	{
+		
+		meuCanvas.setXY( event.clientX, event.clientY );
+		meuCanvas.mouseUpdate();
+		
+		textoCoordenadas.innerHTML= " x=" + meuCanvas.x + " y=" + meuCanvas.y;
+		
+	}
+	
+	function onMouseDown( event )
+	{
+		meuCanvas.setMouseDown( true );
+		textoMouseStatus.innerHTML= " Arrastando ";
+		
+		meuCanvas.mouseUpdate();
+		
+		rodando= document.getElementById( "chkRodando" ).checked;
+	}
+	
+	function onMouseUp( event )
+	{
+		meuCanvas.setMouseDown( false );
+		textoMouseStatus.innerHTML= " Sem arrastar ";
+	}
+	
+	function fnCheckRodando()
+	{
+		rodando= ! rodando;
+		
+		if ( rodando )
+		{
+			document.getElementById( "chkApagar" ).checked= false;
+			corCelula= corCelulaPreenchida;
+		}
+	}
+	
+	function limpar()
+	{
+		for ( var linha= 0; linha < numLinhas; linha++ )
+		{
+			for ( var coluna= 0; coluna < numColunas; coluna++ )
+			{
+				matriz[ linha ][ coluna ]= false;
+			}
+		}
+		
+		meuCanvas.limpar();
+		
+		
+	}
+	
+	function fnConfigApagar()
+	{
+		if ( document.getElementById( "chkApagar" ).checked )
+		{
+			corCelula= "white";
+			
+			rodando= false;
+			document.getElementById( "chkRodando" ).checked= false;
+		}
+		else
+		{
+			corCelula= corCelulaPreenchida;
+		}
+	}
+	
+	window.onload= inicializar();
+	
+	</script>
+	
+</body>
+
+</html>
