@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang= "pt-br">
+    <head>
+        <meta charset= "utf-8">
+        <title> Turmas ( Notas ) </title>
+        <link rel= "stylesheet" type= "text/css" href= "/default.css">
+    </head>
+    <body onload= "fnOnLoad();">
+        <h1> Turmas </h1>
+        
+        <fieldset>
+        <textarea id= "texto" rows= "10" cols= "100">
+            
+        </textarea>
+        <br>
+        <input type= "button" id= "btFormatar" value= "Formatar" width= "80"
+                height= "25" onclick= "fnFormatarDeTextArea();">
+                
+        <input type= "button" id= "btColar" value= "Colar Direto" width= "80"
+                height= "25" onclick= "fnColar();">
+                
+        </fieldset>
+        
+        <table id= "tabNotas" border= "2px">
+        </table>
+        
+        <script type= "text/javascript">
+        
+            var vetorCampos= [];
+            
+            function fnOnLoad()
+            {
+                fnConfigurarColar();
+            }
+            
+            function fnFormatarDeTextArea()
+            {
+                let texto= document.getElementById( "texto" ).value;
+                let tabela= document.getElementById( "tabela" );
+                
+                htmlTabela= fnFormatar( texto, tabela );
+                
+                document.getElementById( "tabNotas" ).innerHTML= htmlTabela;
+            }
+            
+            function fnFormatar( texto, tabela )
+            {
+                let obterNomesCampos= true;
+                
+                vetorCampos= [];
+                
+                let novoTexto= "";
+                
+                let primeiroCaractereValido= false;
+                
+                for ( let i= 0; i < texto.length; i++ )
+                {
+                    let caractere= texto.substring( i, i+1 );
+                    
+                    if ( ! primeiroCaractereValido && caractere != 'M' )
+                    {
+                        continue;
+                    }
+                    primeiroCaractereValido= true;
+                    
+                    if ( caractere != "\t" && caractere != "\n" )
+                    {
+                        novoTexto+= caractere;
+                    }
+                    else
+                    {
+                        while ( caractere == "\t" || caractere == "\n" )
+                        {
+                            ++i;
+                            caractere= texto.substring( i, i+1 );
+                        }
+                        novoTexto+= "\t";
+                        --i;
+                    }
+                }
+                
+                texto= novoTexto + "\t";
+                
+                let campo= "";
+                
+                let numCols= 0;
+                let coluna= 0;
+                
+                var htmlTabela;
+                
+                for ( let i= 0; i < texto.length; i++ )
+                {
+                    let caractere= texto.substring( i, i+1 );
+                    
+                    if ( obterNomesCampos )
+                    {
+                        if ( caractere != "\t" && campo != "MF" )
+                        {
+                            campo+= caractere;
+                        }
+                        else
+                        {
+                            ++numCols;
+                            //alert( campo );
+                            vetorCampos.push( campo );
+                            if ( campo == "MF" )
+                            {
+                                obterNomesCampos= false;
+                                
+                                htmlTabela= fnPreencherTitulos( vetorCampos );
+                            }
+                            campo= "";
+                        }
+                        
+                       
+                    }
+                    else
+                    {
+                        if ( coluna == 0 )
+                        {
+                            htmlTabela+= "<tr>";
+                            coluna++;
+                        }
+                        
+                        if ( caractere != "\t" && caractere != "\n" )
+                        {
+                            campo+= caractere;
+                        }
+                        else
+                        {
+                            htmlTabela+= "<td>" + campo + "</td>";
+                            campo= "";
+                            if ( ++coluna == 11 )
+                            {
+                                htmlTabela+= "</tr>";
+                                coluna= 0;
+                            }
+                        }
+                    }
+                    
+                }
+                
+                return htmlTabela;
+            }
+            
+            function fnPreencherTitulos( vetorCampos )
+            {
+                let htmlTabela= "<caption> Tabela de Notas </caption> <tr> ";
+                for ( i= 0; i < vetorCampos.length; i++ )
+                {
+                    htmlTabela+= "<th> " + vetorCampos[ i ] + "</th>";
+                }
+                htmlTabela+= "</tr>";
+                
+                return htmlTabela;
+            }
+            
+            function fnColar()
+            {
+                alert( document.execCommand( 'paste' ) );
+            }
+            
+            function fnConfigurarColar() 
+            {                                                                             
+                document.addEventListener('paste', e => {
+                    let texto = e.clipboardData.getData('Text');
+                    
+                    textarea= document.getElementById( "texto" );
+                    
+                    textarea.value= texto;
+                    texto= textarea.value;
+                    
+                    let tabela= document.getElementById( "tabela" );
+                    
+                    htmlTabela= fnFormatar( texto, tabela );
+                    
+                    document.getElementById( "tabNotas" ).innerHTML= htmlTabela;
+                 
+                });
+            }
+            
+        </script>
+    </body>
+</html>
