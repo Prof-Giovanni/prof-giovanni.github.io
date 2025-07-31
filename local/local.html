@@ -85,7 +85,10 @@
 						let erro=
 							Math.sqrt( ( latitude - geo.latitude )*( latitude - geo.latitude ) +
 								( longitude - geo.longitude )*( longitude - geo.longitude ) );
-								
+						
+						latitude= geo.latitude;
+						longitude= geo.longitude;
+						
 						if ( erro < 0.001 )
 						{
 							console.log( "Estabilizou." );
