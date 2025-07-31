@@ -1,0 +1,232 @@
+
+<!doctype html>
+<html lang= "pt-br">
+<head>
+	<meta charset= "utf-8">
+	<title> Geolocalização </title>
+	<style>
+		body 
+		{
+			font-family: arial;
+		}
+		
+		#mapa
+		{
+			height: 500px;
+			width:	600px;
+		}
+	</style>
+</head>
+<body onload= "inicializar();">
+
+	<h1> Exemplo Geolocalização </h1>
+	
+	<p>
+		Geolocalização em JavaScript.
+	</p>
+	
+	<p id= "idStatus"> </p>
+	
+	<p id= "idLatitude"> </p>
+	<p id= "idLongitude"> </p>
+	
+    <iframe id="idMapa" allowfullscreen="" loading="lazy" width="450" height="250"></iframe>
+	
+	<script>
+	
+		var idstatus= document.getElementById( "idStatus" );
+		var idLatitude= document.getElementById( "idLatitude" );
+		var idLongitude= document.getElementById( "idLongitude" );
+		var idMapa= document.getElementById( "idMapa" );
+		
+		function inicializar()
+		{						
+			let posCarga= function( latitude, longitude, zoom )
+			{
+				idLatitude.innerHTML= "Latitude: " + formatarCoordenada( latitude, 'S', 'N' );
+				idLongitude.innerHTML= "Longidude: " + formatarCoordenada( longitude, 'W', 'E' );
+				
+				const mapUrl= "https://maps.google.com/maps?q=" + latitude + "," +
+						longitude + "&z= " + zoom + "&output=embed";
+				
+				idMapa.src= mapUrl;		
+			}
+			
+			let estabilizou= false;
+			
+			function aguardar( ms )
+			{
+				return new Promise( resolve => setTimeout( resolve, ms ) );
+			}
+			
+			let latitude= undefined, longitude= undefined;
+			
+			let carregar= async function()
+			{				
+				while ( ! estabilizou )
+				{						
+					let geo= new Geo( () => posCarga( geo.latitude, geo.longitude, geo.zoom ) );					
+									
+					await aguardar( 5000 );
+					
+					console.log( "Repetindo" )
+					
+					console.log( "@Latitude = " + latitude );
+
+					if ( latitude == undefined || longitude == undefined )
+					{
+						latitude= geo.latitude;
+						longitude= geo.longitude;
+						
+						console.log( " Atribuiu Latitude = " + latitude );
+					}
+					else
+					{
+						let erro=
+							Math.sqrt( ( latitude - geo.latitude )*( latitude - geo.latitude ) +
+								( longitude - geo.longitude )*( longitude - geo.longitude ) );
+								
+						if ( erro < 0.001 )
+						{
+							console.log( "Estabilizou." );
+							estabilizou= true;
+							return;
+						}
+					}
+				}			
+			}
+			
+			carregar();				
+		}	
+
+		function formatarCoordenada( coordenada, neg, pos )
+		{
+			let strCoord= Math.abs( Math.trunc( coordenada ) ) + "º ";
+			let frac= Math.abs( coordenada % 1 );
+			let minutos= Math.trunc( frac * 60 );
+			strCoord+= minutos + "' ";
+			let segundos= ( ( frac - minutos / 60 ) * 3600 ).toFixed( 1 );
+			strCoord+= segundos + "'' ";
+			strCoord+= coordenada < 0 ? neg : pos;
+			return strCoord;				
+		}		
+		
+		class Geo
+		{
+			constructor( fnPosCarga )
+			{
+				this.testeCorrente= true;
+				
+				this.latitude= undefined;
+				this.longitude= undefined;
+				this.zoom= 15;
+				
+				this.profundidade= 3;
+				
+				this.posCarga= fnPosCarga;
+				
+				if ( this.permissaoGeolocalizacao() )
+				{
+					this.testarGeolocalizacao( 3 );					
+				}
+			}
+			
+			obterPosicao( position )
+			{
+				console.log( "Geolocalização funcionou corretamente:" );
+				console.log( "Latitude: " + position.coords.latitude );
+				console.log( "Longitude: " + position.coords.longitude );
+				
+				this.latitude= position.coords.latitude;
+				this.longitude= position.coords.longitude;
+				
+				this.posCarga( this.latitude, this.longitude, this.zoom );
+			}
+			
+			tratarErro( error, message )
+			{
+				console.error( "Erro ao obter localização (" + error.code + 
+											"): " + error.message);
+				if ( this.profundidade > 0 )
+				{
+					this.testarGeolocalizacao( this.profundidade - 1 );
+				}
+			}
+			// Função para testar a geolocalização na prática
+			testarGeolocalizacao( profundidade ) 
+			{
+				console.log( "Tentativa de profundidade " + profundidade );
+				this.sucessoAoLocalizar= false;
+				this.profundidade= profundidade;
+				
+				// Tenta obter a posição atual
+				navigator.geolocation.getCurrentPosition(
+					( position ) => { this.obterPosicao( position ) },
+					( error ) => { this.tratarErro( error ) },
+					{
+						timeout: 2000
+					} // Timeout de 2 segundos
+				);
+			}
+
+			permissaoGeolocalizacao()
+			{
+				if ( navigator.geolocation ) 
+				{
+					let strDisponivel= "Geolocalização disponível.";
+					
+					console.log( strDisponivel );
+					// Pode prosseguir com a obtenção da localização
+					idstatus.innerHTML= strDisponivel;			
+						
+					// Verifica o status da permissão (quando possível)
+					if ( navigator.permissions )
+					{
+						navigator.permissions.query( { name: 'geolocation' } )
+							.then( function( permissionStatus )
+							{
+								console.log( "Status da permissão: " + permissionStatus.state );
+								
+								// Monitora mudanças no status da permissão
+								permissionStatus.onchange = function() 
+								{
+									console.log( "Status da permissão alterado para: " +
+										this.state );
+								};
+							});
+					} 
+					else 
+					{
+						console.error( "API de Permissões não suportada. " +
+							"Não é possível verificar o status da permissão." );
+						return false;
+					}
+				}
+				else 
+				{
+					let strNaoDisponivel= "Geolocalização nao suportada.";
+					console.error( strNaoDisponivel );
+					// Não é possível obter a localização neste navegador
+					idstatus.innerHTML= strNaoDisponivel;
+					return false;
+				}
+				return true;
+			}
+		
+			obterUrlGoogleMaps()
+			{
+				// Monta a URL do Google Maps com as coordenadas
+				const mapUrl= "https://maps.google.com/maps?q=" + this.latitude + "," +
+								this.longitude + "&z=" + this.zoom + "&output=embed";
+		
+				return mapUrl;		
+			}
+		}
+		
+		
+		
+	</script>
+	
+</body>
+
+</html>
