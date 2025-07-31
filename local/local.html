@@ -8,12 +8,16 @@
 		body 
 		{
 			font-family: arial;
+			background-color: rgb( 255, 255, 200 );
 		}
 		
-		#mapa
+		.mapa
 		{
-			height: 500px;
-			width:	600px;
+			width:	80%;
+			height: 90%;
+			margin:	auto;
+			display:block;
+			background-color: rgb( 200, 200, 200 );
 		}
 	</style>
 </head>
@@ -30,7 +34,7 @@
 	<p id= "idLatitude"> </p>
 	<p id= "idLongitude"> </p>
 	
-    <iframe id="idMapa" allowfullscreen="" loading="lazy" width="450" height="250"></iframe>
+    <iframe id="idMapa" class= "mapa" allowfullscreen="" loading="lazy" ></iframe>
 	
 	<script>
 	
